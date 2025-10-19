@@ -5,7 +5,7 @@ It combines a realistic backtesting engine built in Python (FastAPI + pandas) wi
 ---
 
 ### Demo
-Live Demo: https://probanishment-inertly-katerine.ngrok-free.dev/
+Live Demo: https://performed-describing-send-derby.trycloudflare.com
 - Click **Start Duel** to begin the game!
 
 ---
