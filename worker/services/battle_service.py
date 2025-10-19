@@ -326,9 +326,14 @@ class BattleService:
             "exit_notification": exit_message,
             "bar_data": {
                 "timestamp": bar_es.name.strftime('%Y-%m-%d %H:%M:%S'),
+                
+                # CRITICAL FIX: ADDING OPEN, HIGH, LOW PRICES FOR ES
+                "open_es": round(bar_es['open'], 2), 
+                "high_es": round(bar_es['high'], 2), 
+                "low_es": round(bar_es['low'], 2), 
                 "close_es": round(bar_es['close'], 2), 
+                
                 "close_nq": round(bar_nq['close'], 2),
             },
-            # Returns the full list of updated user states, including the PnL
             "active_traders": self.active_traders 
         }

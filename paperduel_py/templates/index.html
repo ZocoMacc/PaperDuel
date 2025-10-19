@@ -144,13 +144,19 @@ function clampWindow() {
 }
 
 function stateToCandle(state) {
- const b = state.bar_data; 
- // Use the ES close price as the main chart asset for visual simplicity (you can enhance this later)
- const price = b.close_es;
- const ts = Math.floor(new Date(b.timestamp.replace(' ', 'T') + 'Z').getTime()/1000);
- 
- // Use CLOSE price as proxy for OHLC for visual simplicity
- return { time: ts, open: price, high: price, low: price, close: price };
+  const b = state.bar_data; 
+  
+  // 1. Convert timestamp to seconds (required by Lightweight Charts)
+  const ts = Math.floor(new Date(b.timestamp.replace(' ', 'T') + 'Z').getTime()/1000);
+  
+  // 2. CRITICAL FIX: Use individual OHLC values from the bar_data object
+  return { 
+    time: ts, 
+    open: b.open_es, 
+    high: b.high_es, 
+    low: b.low_es, 
+    close: b.close_es 
+  };
 }
 
 
