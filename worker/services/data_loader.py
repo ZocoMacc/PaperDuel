@@ -11,19 +11,19 @@ ASSET_CONFIG: Dict[str, Any] = {
         'MULTIPLIER': 50.0,
         'TICK_VALUE': 12.50,
         # Path relative to the project root where the worker is executed
-        'DATA_FILE': 'data/ES_Continuous_1min_Data.csv'
+        'DATA_FILE': 'data/es_minute.csv'
     },
     'NQ': {
         'MULTIPLIER': 20.0,
         'TICK_VALUE': 5.00,
-        'DATA_FILE': 'data/NQ_Continuous_1min_Data.csv'
+        'DATA_FILE': 'data/nq_minute.csv'
     }
 }
 
 def load_asset_data(asset_symbol: str) -> Optional[pd.DataFrame]:
     """Loads OHLCV data from the corresponding CSV file."""
     if asset_symbol not in ASSET_CONFIG:
-        return None
+        return None 
 
     file_path = ASSET_CONFIG[asset_symbol]['DATA_FILE']
     
