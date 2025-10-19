@@ -1,491 +1,407 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>PaperDuel – Replay</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Lightweight Charts standalone build (no bundler needed) -->
-  <!-- <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-   -->
+ <meta charset="utf-8" />
+ <title>PaperDuel – Competitive Backtesting</title>
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ 
+ <!-- Lightweight Charts standalone build -->
+ <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"
+ onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js';document.head.appendChild(s);">
+ </script>
 
-  <!-- Added this -->
-  <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"
-        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js';document.head.appendChild(s);">
-  </script>
+ <style>
+  /* Combined and Cleaned CSS */
+  body {
+   margin: 0; background: #0d0d0d; color: #ddd; font-family: monospace; height: 100vh; overflow: hidden;
+  }
+  #layout { display: flex; height: 100%; width: 100%; }
+  /* CRITICAL: Adjust width to accommodate duel stats */
+  #left-panel { width: 350px; border-right: 1px solid #222; display: flex; flex-direction: column; background: #1b1b1b; }
+  #left-panel h3 { margin: 0; padding: 10px; border-bottom: 1px solid #333; background: #1b1b1b; text-align: center; font-weight: bold; color: #eee; }
+  #console { flex: 1; padding: 8px; overflow-y: auto; font-size: 12px; line-height: 1.4; background: #0b0b0b; }
+  #right-panel { flex: 1; display: flex; flex-direction: column; min-width:0; background: #1b1b1b; }
+  #chart { flex: 1; min-height:0; background: #1e1e1e; padding:0; margin:0; }
+  #command-panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; border-top: 1px solid #333; background: #111; }
+  input[type="number"], select { padding: 6px; border: 1px solid #444; border-radius: 4px; background: #2a2a2a; color: #eee; width: 60px; }
+  button { padding: 6px 10px; border: 1px solid #444; border-radius: 4px; background: #222; color: #eee; cursor: pointer; transition: background .2s; }
+  button:hover:not(:disabled) { background: #333; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  <style>
-    /* body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 16px; color:#eee; background:#121212; } */
-    .wrap { max-width: 980px; margin: 0 auto; }
-    /* #chart { width: 100%; height: 420px; border: 1px solid #444; border-radius: 8px; overflow: hidden; } */
-    /* .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; } */
-    button { padding:8px 12px; border:1px solid #444; border-radius:6px; background:#2a2a2a; color:#eee; cursor:pointer; }
-    button:hover { background:#3a3a3a; }
-    .status { margin-top:6px; font-size:14px; color:#444; }
-
-    /* Alerts */
-    #toasts {
-      position: fixed; right: 16px; bottom: 16px;
-      display: flex; flex-direction: column; gap: 8px; z-index: 9999;
-    }
-    .toast {
-      min-width: 260px; max-width: 420px;
-      padding: 10px 12px; border-radius: 8px;
-      background: #2a2a2a; color: #eee; box-shadow: 0 6px 24px rgba(0,0,0,.35);
-      border: 1px solid #444; font: 14px system-ui, sans-serif;
-      display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 8px;
-      opacity: 0; transform: translateY(8px); transition: opacity .2s ease, transform .2s ease;
-    }
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast .title { font-weight: 600; margin-bottom: 4px; }
-    .toast .close { cursor: pointer; opacity: .8; border: 0; background: transparent; color: inherit; }
-    .toast.info    { border-color: #3a6ea5; }
-    .toast.success { border-color: #2e7d32; }
-    .toast.warn    { border-color: #a67c00; }
-    .toast.error   { border-color: #b00020; }
-
-    body {
-      margin: 0;
-      background: #0d0d0d;
-      color: #ddd;
-      font-family: monospace;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    #layout {
-      display: flex;
-      height: 100%;
-      width: 100%;
-    }
-
-    /* Left column: history log */
-    #left-panel {
-      width: 26%;
-      border-right: 1px solid #222;
-      display: flex;
-      flex-direction: column;
-      background: #1b1b1b;
-    }
-
-    #left-panel h3 {
-      margin: 0;
-      padding: 10px;
-      border-bottom: 1px solid #333;
-      background: #1b1b1b;
-      text-align: center;
-      font-weight: bold;
-      color: #eee;
-    }
-
-    #console {
-      flex: 1;
-      padding: 8px;
-      overflow-y: auto;
-      font-size: 12px;
-      line-height: 1.4;
-      background: #0b0b0b;
-    }
-
-    /* Right column: chart + buttons */
-    #right-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width:0;
-      background: #1b1b1b;
-    }
-
-    #right-panel .wrap { flex:1; display:flex; flex-direction:column; min-height:0; padding:0; margin:0; }
-
-    #chart {
-      flex: 1;
-      min-height:0;       /* taller chart */
-      background: #1e1e1e;
-      padding:0;
-      margin:0;
-    }
-
-    #command-panel {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-      padding: 10px;
-      border-top: 1px solid #333;
-      background: #111;
-    }
-
-    #command-panel button {
-      background: #222;
-      color: #eee;
-      border: 1px solid #444;
-      padding: 6px 10px;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background .2s;
-    }
-    #command-panel button:hover {
-      background: #333;
-    }
-
-    #status {
-      text-align: center;
-      padding: 6px;
-      background: #111;
-      border-top: 1px solid #222;
-      font-size: 13px;
-    }
-
-    /* Dark Scroll bars */
-    /* Chrome/Edge/Safari */
-    *::-webkit-scrollbar {
-      width: 10px; height: 10px;
-    }
-    *::-webkit-scrollbar-track {
-      background: #0f0f0f;
-    }
-    *::-webkit-scrollbar-thumb {
-      background: #2e2e2e; border-radius: 8px; border: 2px solid #0f0f0f;
-    }
-    *::-webkit-scrollbar-thumb:hover {
-      background: #3a3a3a;
-    }
-
-    /* Firefox */
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: #2e2e2e #0f0f0f;  /* thumb, track */
-    }
-
-  </style>
+  /* Duel Specific Styling */
+  .user-stat-card { 
+   padding: 8px 12px; border: 1px solid #333; border-radius: 4px; margin-bottom: 8px; font-size: 13px;
+   background: #151515;
+  }
+  /* CRITICAL STYLING: Highlights active trader */
+  .user-stat-card.active { border-color: #3a6ea5; background: #181825; box-shadow: 0 0 5px rgba(58, 110, 165, 0.4); }
+ .user-stat-card .pnl-val { font-weight: bold; }
+  .pnl-val.profit { color: #00d980; }
+  .pnl-val.loss   { color: #ff5252; }
+  .user-stat-card .info-line { display: flex; justify-content: space-between; margin-top: 2px; }
+  
+  #login-container { padding: 10px; border-bottom: 1px solid #333; display: flex; flex-direction: column; gap: 8px; }
+ </style>
 </head>
 
 <body>
-  <!-- toast + modal containers may also live here if you use them -->
-  <div id="toasts"></div>
+ 
+ <div id="layout">
+  <!-- LEFT: Competitive Status and History -->
+  <div id="left-panel">
+   <h3>PaperDuel Battle Status</h3>
+   
+   <!-- 1. Login/Session Controls (Updated for Duel Start) -->
+   <div id="login-container">
+    <div id="auth-status" style="font-size:14px;">A: Logged In | B: Ready to Duel</div>
 
-  <div id="layout">
-    <!-- LEFT: history -->
-    <div id="left-panel">
-      <h3>History</h3>
-      <pre id="console"></pre>
-      <div id="status"></div>
-    </div>
+    <select id="asset-selector" style="width:100%;">
+     <option value="ES">ES (E-mini S&P 500)</option>
+     <option value="NQ">NQ (E-mini NASDAQ 100)</option>
+    </select>
+    <button id="start-duel">Start Duel</button>
+   </div>
 
-    <!-- RIGHT: exact working block, unchanged IDs -->
-    <div id="right-panel">
-      <div class="wrap" style="display:flex;flex-direction:column;min-height:100%;">
-        <h1 style="margin:10px 12px 6px;">Replay</h1>
-        <div id="chart" style="flex:1;min-height:0;"></div>
-
-        <div id="command-panel" style="margin-top:10px;padding:10px;">
-          Size <input id="size" type="number" value="1" style="width:60px">
-          SL <input id="sl" type="number" step="0.25" style="width:90px">
-          TP <input id="tp" type="number" step="0.25" style="width:90px">
-          <button id="buy">BUY</button>
-          <button id="sell">SELL</button>
-          <button id="flat">CLOSE</button>
-          <button id="next">Next Bar</button>
-          <button id="play">Play</button>
-          <button id="pause">Pause</button>
-          <button id="end">End</button>
-        </div>
-      </div>
-    </div>
+   <!-- 2. Player Status Cards Container -->
+   <div id="player-status" style="padding: 10px;">
+   <!-- Stats cards will be rendered here -->
+   </div>
+   <!-- 3. History Console -->
+  <h3>Execution Log</h3>
+   <pre id="console"></pre>
   </div>
 
-<pre id="console" style="background:#111;color:#9f9;font:12px/1.4 monospace;padding:8px;border-radius:6px;max-height:180px;overflow:auto;margin-top:8px;"></pre>
+  <!-- RIGHT: Chart and Command Panel -->
+ <div id="right-panel">
+   <div class="wrap" style="display:flex;flex-direction:column;min-height:100%;">
+    <h1 id="header-status" style="margin:10px 12px 6px;">Replay (INACTIVE)</h1>
+     <div id="chart" style="flex:1;min-height:0;"></div>
+
+    <div id="command-panel" style="margin-top:10px;padding:10px;">
+     
+   <!-- User Selector -->
+     <span style="font-weight:bold;">Trader:</span>
+<button id="trader-a-btn" data-user-id="user_1" class="active">User A</button>
+     <button id="trader-b-btn" data-user-id="user_2_opponent">User B</button>
+     
+     <span style="margin-left:15px; font-weight:bold;">Order Asset:</span>
+     <select id="trade-asset-selector" style="width:70px;">
+      <option value="ES">ES</option>
+      <option value="NQ">NQ</option>
+     </select>
+     
+    <span style="margin-left:15px; font-weight:bold;">Params:</span>
+     Size <input id="size" type="number" value="1" min="1" disabled style="width:60px">
+     SL <input id="sl" type="number" step="0.25" disabled style="width:80px">
+     TP <input id="tp" type="number" step="0.25" disabled style="width:80px">
+     
+     <button id="buy" disabled>BUY</button>
+     <button id="sell" disabled>SELL</button>
+     <button id="flat" disabled>CLOSE</button>
+     
+    <span style="margin-left:20px; font-weight:bold;">Control:</span>
+     <button id="next" disabled>Next Bar</button>
+     <button id="play" disabled>Play</button>
+    <button id="pause" disabled>Pause</button>
+ </div>
+    
+    <!-- Removed the redundant console tag at the bottom -->
+   </div>
+  </div>
+ </div>
 
 
 <script>
-/* ===== PaperDuel – single unified script ===== */
+/* ===== PaperDuel – Core Competitive Frontend Script (Dual-User Ready) ===== */
 
-const WINDOW = 120;           // keep last N candles visible
-let chart, series;            // chart handles (created on load)
-let idx = 0;                  // how many candles rendered
-let timer = null;             // play interval id
+const API_URL = ""; 
+const WINDOW = 60;      
+let chart, series; 
 let battleId = null;
+let currentBarIndex = 0;
 let totalBars = 0;
+let timer = null; 
+let activeTradingUserId = 'user_1'; // Starts with User A's ID
+// Map backend IDs to frontend display names
+const USER_MAP = { 'user_1': 'User A', 'user_2_opponent': 'User B' };
 
-/* ---- helpers ---- */
+
+/* ---- Helpers: Chart, Logging, etc. ---- */
+
+function logLine(msg, color = '#9f9', isHeading = false) {
+ const c = document.getElementById('console');
+ const line = document.createElement('div');
+ line.style.color = color;
+ line.textContent = msg;
+ if (isHeading) line.style.fontWeight = 'bold';
+ c.appendChild(line);
+ c.scrollTop = c.scrollHeight;
+}
+
 function clampWindow() {
-  const to = idx, from = Math.max(0, to - WINDOW);
-  chart.timeScale().setVisibleLogicalRange({ from, to });
+ const to = currentBarIndex, from = Math.max(0, to - WINDOW);
+ chart.timeScale().setVisibleLogicalRange({ from, to });
 }
 
 function stateToCandle(state) {
-  const b = state.bar_data; // {timestamp, open, high, low, close, volume}
-  const ts = Math.floor(new Date(b.timestamp.replace(' ', 'T') + 'Z').getTime()/1000);
-  return { time: ts, open: b.open, high: b.high, low: b.low, close: b.close };
+ const b = state.bar_data; 
+ // Use the ES close price as the main chart asset for visual simplicity (you can enhance this later)
+ const price = b.close_es;
+ const ts = Math.floor(new Date(b.timestamp.replace(' ', 'T') + 'Z').getTime()/1000);
+ 
+ // Use CLOSE price as proxy for OHLC for visual simplicity
+ return { time: ts, open: price, high: price, low: price, close: price };
 }
 
-function liveEquity(state) {
-  // Multiplier = 50 for ES (you can expand later based on asset)
-  const mult = 50;
-  const dir  = state?.stats?.position_direction ?? 0;
-  const size = state?.stats?.position_size ?? 0;
-  const entry= state?.stats?.entry_price ?? 0;
-  const last = state?.bar_data?.close ?? 0;
-  const unreal = (dir !== 0 && size > 0) ? (last - entry) * dir * size * mult : 0;
-  const realized = state?.stats?.equity ?? 0;
-  return { unreal, realized, total: realized + unreal, last };
+
+// --- DOM MANIPULATION & STATE DISPLAY ---
+
+function setControlsEnabled(enabled) {
+ document.getElementById('size').disabled = !enabled;
+ document.getElementById('sl').disabled = !enabled;
+ document.getElementById('tp').disabled = !enabled;
+ document.getElementById('buy').disabled = !enabled;
+ document.getElementById('sell').disabled = !enabled;
+ document.getElementById('flat').disabled = !enabled;
+ document.getElementById('next').disabled = !enabled;
+ document.getElementById('play').disabled = !enabled;
+ document.getElementById('pause').disabled = !enabled;
+ document.getElementById('trade-asset-selector').disabled = !enabled;
+ 
+ // Enable/Disable trader buttons based on general control state
+ document.getElementById('trader-a-btn').disabled = !enabled;
+ document.getElementById('trader-b-btn').disabled = !enabled;
 }
 
-// --- toast helper ---
-function toast(message, { title = "", variant = "info", timeout = 2500 } = {}) {
-  const host = document.getElementById('toasts');
-  const el = document.createElement('div');
-  el.className = `toast ${variant}`;
-  el.innerHTML = `
-    <div>
-      ${title ? `<div class="title">${title}</div>` : ""}
-      <div class="msg">${message}</div>
-    </div>
-    <button class="close" aria-label="Close">✕</button>
-  `;
-  host.appendChild(el);
+function updateTraderUI(state) {
+ const container = document.getElementById('player-status');
+ container.innerHTML = ''; // Clear existing cards
+ 
+ // NOTE: The backend did not pass currentBarIndex or totalBars, relying on JS counter 'idx'
+ 
+ document.getElementById('header-status').textContent = `Replay (${state.bar_data.timestamp}) | ${state.status}`;
+ 
+ // 1. Render each trader's card
+ for (const [userId, stats] of Object.entries(state.active_traders)) {
+ const alias = USER_MAP[userId];
+  const pnlClass = stats.unrealized_pnl_usd > 0 ? 'profit' : (stats.unrealized_pnl_usd < 0 ? 'loss' : '');
+ 
+    const card = document.createElement('div');
+    card.className = `user-stat-card ${userId === activeTradingUserId ? 'active' : ''}`;
+    card.innerHTML = `
+      <div>
+        <b>${alias}</b> (Asset: ${stats.position_asset_symbol})
+      </div>
+      <div class="info-line">
+        <span>Equity:</span> <span>$${stats.equity.toFixed(2)}</span>
+      </div>
+      <div class="info-line">
+        <span>PnL:</span> <span class="pnl-val ${pnlClass}">$${stats.unrealized_pnl_usd.toFixed(2)}</span>
+      </div>
+      ${stats.in_position ? `
+        <div class="info-line" style="color:#00d980;">
+          <span>${stats.position_direction > 0 ? 'LONG' : 'SHORT'} ${stats.active_position_size} @ </span> <span>${stats.entry_price_points.toFixed(2)}</span>
+        </div>` : '<div>FLAT</div>'}
+    `;
+    container.appendChild(card);
+  }
 
-  // show
-  requestAnimationFrame(() => el.classList.add('show'));
-
-  // close button
-  el.querySelector('.close').onclick = () => dismiss();
-
-  // auto-dismiss
-  let t = null;
-  function dismiss() {
-    if (t) clearTimeout(t);
-    el.classList.remove('show');
-    setTimeout(() => el.remove(), 200);
-  }
-  if (timeout > 0) t = setTimeout(dismiss, timeout);
-  return { dismiss };
+  // 2. Log dual-asset prices (Time, ES Close, NQ Close)
+  logLine(`TIME: ${state.bar_data.timestamp} | ES: ${state.bar_data.close_es.toFixed(2)} | NQ: ${state.bar_data.close_nq.toFixed(2)}`, '#aaa');
+  
+  // 3. Log auto-exit notification
+  if (state.exit_notification) {
+    logLine(`📢 ${state.exit_notification}`, '#ff5252', true);
+  }
 }
 
-// Log line for each turn
-function logLine(msg, color = '#9f9') {
-  const c = document.getElementById('console');
-  const line = document.createElement('div');
-  line.style.color = color;
-  line.textContent = msg;
-  c.appendChild(line);
-  c.scrollTop = c.scrollHeight;
+
+/* ---- API CALLS AND LOGIC ---- */
+
+async function startDuel(asset="ES", users=["user_1", "user_2_opponent"]) {
+  try {
+    // 1. Start the duel on the backend (Hardcoding User A and User B IDs for simplicity)
+    const r = await fetch("/battle/start", {
+      method:"POST", 
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ asset, user_ids: users })
+    });
+    const d = await r.json();
+    
+    if (!r.ok || d.error) throw new Error(d.detail || d.error);
+    
+    battleId = d.battle_id;
+    // NOTE: ASSET_SYMBOL is not used in the final code, using trade-asset-selector instead
+    
+    logLine(`Duel started for ${asset}. ID: ${battleId}`, '#0f0', true);
+    
+    // 2. Seed the chart and UI with initial state (first bar)
+    setControlsEnabled(true);
+    document.getElementById('start-duel').disabled = true;
+    series.setData([]); // Clear old data
+    currentBarIndex = 0;
+    await seedEngine(30); // Advance 30 bars immediately
+    
+  } catch (e) {
+    console.error("Failed to start duel:", e);
+    logLine(`Failed to start duel: ${e.message}`, '#f00');
+    setControlsEnabled(false);
+    document.getElementById('start-duel').disabled = false;
+  }
 }
 
-function printState(st) {
-  if (!st || !st.bar_data) return;
-  const s = st.stats, b = st.bar_data;
-  logLine(`TIME: ${b.timestamp}`, '#9ff');
-  logLine(`CLOSE: ES ${b.close} | EQUITY: $${s.equity.toFixed(2)}`);
-  const pos = s.position_size > 0
-    ? `${s.position_direction > 0 ? 'LONG' : 'SHORT'} ${s.position_size} @ ${s.entry_price}`
-    : '0 contracts (FLAT)';
-  logLine(`POS: ${pos} | SL: ${s.sl_level ?? 'None'} | TP: ${s.tp_level ?? 'None'}`);
-  logLine('----------------------------------------------', '#555');
-}
-
-async function updateStatus(lastState = null) {
-  const st   = lastState || await getState();
-  const eq   = liveEquity(st);
-  const posD = st?.stats?.position_direction ?? 0;
-  const posS = st?.stats?.position_size ?? 0;
-
-  document.getElementById('status').textContent =
-    `Bars: ${idx}/${totalBars} | Last: ${eq.last} | Pos: ${posD} x ${posS} | ` +
-    `Equity (realized): $${eq.realized.toFixed(2)} | ` +
-    `Unrealized: $${eq.unreal.toFixed(2)} | Total: $${eq.total.toFixed(2)}`;
-}
-
-async function endBattle() {
-  pause();
-  // If in a position, queue a close and advance once so it fills
-  let st = await getState();
-  if (st.stats.position_size > 0 && idx < totalBars - 1) {
-    const r = await place("CLOSE");
-    if (!r.error) {
-      st = await advance();                 // fills close on next bar open
-      series.update(stateToCandle(st));
-      idx++;
-      clampWindow();
-    }
-  }
-  // Final status + equity
-  const eq = liveEquity(st);
-  alert(
-    `Finished!\n` +
-    `Status: ${st.status}\n` +
-    `Final Equity (realized): $${eq.realized.toFixed(2)}\n` +
-    `Unrealized at end: $${eq.unreal.toFixed(2)}\n` +
-    `Total: $${eq.total.toFixed(2)}`
-  );
-}
-
-async function updateStatus(last=null) {
-  const st = last || await getState();
-  const eq = st?.stats?.equity ?? 0;
-  const posDir = st?.stats?.position_direction ?? 0;
-  const posSz  = st?.stats?.position_size ?? 0;
-  const lastClose = st?.bar_data?.close ?? "—";
-  document.getElementById('status').textContent =
-    `Bars: ${idx}/${totalBars} | Last: ${lastClose} | Pos: ${posDir} x ${posSz} | Equity: $${eq}`;
-}
-
-/* ---- API helpers ---- */
-async function startBattle(asset="ES") {
-  const r = await fetch("/api/battle/start", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ asset, user_id:"user_1" })
-  });
-  const d = await r.json();
-  if (!r.ok || !d.battle_id) throw new Error(JSON.stringify(d));
-  battleId = d.battle_id; totalBars = d.total_bars;
-}
-async function getState() {
-  const r = await fetch(`/api/battle/${battleId}/state`);
-  return await r.json();
-}
 async function advance() {
-  const r = await fetch(`/api/battle/${battleId}/advance`, { method:"POST" });
-  return await r.json();
+  try {
+    if (!battleId) return;
+    const r = await fetch(`/battle/${battleId}/advance`, { method:"POST" });
+    const st = await r.json();
+    
+    if (st.status.startsWith("ENDED") || st.status.startsWith("LOST")) {
+      pause();
+      logLine(`\n📢 BATTLE OVER: ${st.status}`, '#ff5252', true);
+      setControlsEnabled(false);
+    }
+    
+    // Update chart using the ES close price as the main candle visual
+    series.update(stateToCandle(st));
+    currentBarIndex++;
+    clampWindow();
+    updateTraderUI(st);
+    
+    return st;
+  } catch (e) {
+    pause();
+    console.error("Advance failed:", e);
+    logLine(`Connection Error: ${e.message}`, '#f00');
+  }
 }
-async function place(action, payload={}) {
-  const r = await fetch(`/api/battle/${battleId}/order`, {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ action, ...payload })
-  });
-  return await r.json();
+
+
+async function placeOrder(action) {
+  const size = Number(document.getElementById('size').value) || 0;
+  const sl = document.getElementById('sl').value ? Number(document.getElementById('sl').value) : null;
+  const tp = document.getElementById('tp').value ? Number(document.getElementById('tp').value) : null;
+  
+  const user_id = activeTradingUserId; // CRITICAL: Uses the ID selected by the A/B buttons
+  const traded_asset = document.getElementById('trade-asset-selector').value; 
+  
+  // Validation
+  if (size <= 0 && action !== 'CLOSE') return logLine("Size must be > 0.", '#ff5252');
+
+  const payload = { 
+    battle_id: battleId, 
+    user_id, 
+    action, 
+    size, 
+    sl, 
+    tp,
+    traded_asset
+  };
+
+  try {
+    const r = await fetch("/battle/trade", {
+      method:"POST", 
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    const result = await r.json();
+    
+    if (!r.ok || result.error) {
+      logLine(`TRADE FAILED: ${result.error || "Unknown Error"}`, '#f00');
+      return;
+    }
+    
+    logLine(`[${USER_MAP[user_id]}] ${action} ${size} @ ${traded_asset}`, '#00d980');
+
+    // If the trade was an entry or close, we advance the bar immediately for fill
+    if (result.result === 'Executed' || result.result === 'Closed') {
+      await advance();
+    }
+    
+  } catch(e) {
+    console.error("Trade API call failed:", e);
+    logLine("Trade connection error. Check server.", '#f00');
+  }
 }
+
+function setActiveTrader(userId) {
+  activeTradingUserId = userId;
+  
+  // Visually highlight the active user button
+  document.getElementById('trader-a-btn').classList.toggle('active', userId === 'user_1');
+  document.getElementById('trader-b-btn').classList.toggle('active', userId === 'user_2_opponent');
+}
+
 
 /* ---- engine-driven chart flow ---- */
-async function seedEngine(n=30) {
-  const data = [];
-  for (let k=0; k<n; k++) {
-    const st = await advance();
-    if (st.error) break;
-    data.push(stateToCandle(st));
-  }
-  series.setData(data);
-  idx = data.length;
-  chart.timeScale().fitContent();
-  clampWindow();
-  updateStatus();
-}
-async function appendFromEngine() {
-  const st = await advance();
-  if (st.error) { pause(); return; }
-  series.update(stateToCandle(st));
-  idx++;
-  clampWindow();
-  updateStatus(st);
-  printState(st);
-  if (st.status && st.status !== "RUNNING") pause();
+
+async function seedEngine(n) {
+  const data = [];
+  for (let k=0; k<n; k++) {
+    const st = await advance();
+    if (st.status !== "RUNNING") break; 
+    data.push(stateToCandle(st));
+  }
+  series.setData(data);
+  chart.timeScale().fitContent();
+  clampWindow();
 }
 
-function play(speed=300){ if (!timer) timer = setInterval(appendFromEngine, speed); }
-function pause(){ if (timer){ clearInterval(timer); timer = null; } }
-async function step(){ await appendFromEngine(); }
-
-
-/* ---- trading wrappers ---- */
-async function nextBar() {
-  await appendFromEngine();
+function play(speed=200){ 
+  if (timer) return; 
+  document.getElementById('play').disabled = true;
+  document.getElementById('pause').disabled = false;
+  timer = setInterval(advance, speed); 
 }
-
-async function buy(){
-  const size = Number(document.getElementById('size').value) || 1;
-  const sl = document.getElementById('sl').value ? Number(document.getElementById('sl').value) : null;
-  const tp = document.getElementById('tp').value ? Number(document.getElementById('tp').value) : null;
-  const r = await place("BUY", { size, sl, tp });
-  if (r.error) return toast(r.error, { variant:'error', title:'BUY Failed' });
-  toast(`BUY ${size} queued`, { variant:'success', title:'BUY' });
-  printState(await getState());
-}
-
-async function sell(){
-  const size = Number(document.getElementById('size').value) || 1;
-  const sl = document.getElementById('sl').value ? Number(document.getElementById('sl').value) : null;
-  const tp = document.getElementById('tp').value ? Number(document.getElementById('tp').value) : null;
-  const r = await place("SELL", { size, sl, tp });
-  if (r.error) return toast(r.error, { variant:'error', title:'SELL Failed' });
-  toast(`SELL ${size} queued`, { variant:'success', title:'SELL' });
-  printState(await getState());
-}
-
-async function closePos(){
-  const r = await place("CLOSE");
-  if (r.error) return toast(r.error, { variant:'error', title:'CLOSE Failed' });
-  toast('Position closed', { variant:'info' });
-  printState(await getState());
+function pause(){ 
+  if (timer){ 
+    clearInterval(timer); 
+    timer = null; 
+    document.getElementById('play').disabled = false;
+    document.getElementById('pause').disabled = true;
+  } 
 }
 
 
 /* ---- boot on page load ---- */
 window.addEventListener("load", async () => {
-  // 0) verify lib
-  if (!window.LightweightCharts || typeof LightweightCharts.createChart !== "function") {
-    alert("Chart library failed to load."); return;
-  }
-
-  // 1) create chart first so `series` exists before engine runs
-  const el = document.getElementById('chart');
-  chart = LightweightCharts.createChart(el, {
-    width: el.clientWidth,
-    height: el.clientHeight,           // use the container’s actual height
-    layout: { background: { color: '#1e1e1e' }, textColor: '#ddd' },
-    grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
-    rightPriceScale: { borderVisible: false },
-    timeScale: { borderVisible:false, timeVisible:true, secondsVisible:false },
-  });
-  series = chart.addCandlestickSeries();
-
-  // Resize on container size changes (more reliable than window.resize)
-  new ResizeObserver(entries => {
-    for (const e of entries) {
-      const { width, height } = e.contentRect;
-      chart.applyOptions({ width: Math.max(0, Math.floor(width)), height: Math.max(0, Math.floor(height)) });
-    }
-  }).observe(el);
-
-  // Create legend
-  const legend = document.createElement('div');
-  legend.style.cssText = 'margin-top:6px;color:#bbb;font:12px system-ui';
-  // el.parentElement.appendChild(legend);
-
-  const hhmm = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    hour: '2-digit', minute: '2-digit', hour12: false
-  });
-
-  chart.subscribeCrosshairMove(param => {
-    const p = param.seriesData.get(series);
-    if (!p) { legend.textContent = ''; return; }
-    const dt = new Date(p.time * 1000);
-    legend.textContent = `${hhmm.format(dt)}  O:${p.open} H:${p.high} L:${p.low} C:${p.close}`;
-  });
+  // 1) create chart 
+  const el = document.getElementById('chart');
+  chart = LightweightCharts.createChart(el, {
+    width: el.clientWidth, height: el.clientHeight, 
+    layout: { background: { color: '#1e1e1e' }, textColor: '#ddd' },
+    grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+    rightPriceScale: { borderVisible: false },
+    timeScale: { borderVisible:false, timeVisible:true, secondsVisible:false },
+  });
+  series = chart.addCandlestickSeries({ upColor: '#00d980', downColor: '#ff5252', borderUpColor: '#00d980', borderDownColor: '#ff5252', wickUpColor: '#00d980', wickDownColor: '#ff5252' });
 
 
+  // Resize observer for responsive chart sizing
+  new ResizeObserver(entries => {
+    for (const e of entries) {
+      const { width, height } = e.contentRect;
+      chart.applyOptions({ width: Math.max(0, Math.floor(width)), height: Math.max(0, Math.floor(height)) });
+    }
+  }).observe(el);
 
-  // 2) wire buttons now that play/pause/etc exist
-  document.getElementById('play').onclick  = ()=>play(300);
-  document.getElementById('next').onclick = nextBar;
-  document.getElementById('pause').onclick = pause;
-  // document.getElementById('step').onclick  = step;
-  document.getElementById('buy').onclick = buy;
-  document.getElementById('sell').onclick = sell;
-  document.getElementById('flat').onclick  = closePos;
-  document.getElementById('end').onclick = endBattle;
+  // 2) wire buttons
+  document.getElementById('start-duel').onclick = () => startDuel(document.getElementById('asset-selector').value); 
+  
+  document.getElementById('play').onclick  = () => play(200);
+  document.getElementById('pause').onclick = pause;
+  document.getElementById('next').onclick = advance;
+  
+  document.getElementById('buy').onclick = () => placeOrder("BUY");
+  document.getElementById('sell').onclick = () => placeOrder("SELL");
+  document.getElementById('flat').onclick  = () => placeOrder("CLOSE");
+  
+  document.getElementById('trader-a-btn').onclick = () => setActiveTrader('user_1');
+  document.getElementById('trader-b-btn').onclick = () => setActiveTrader('user_2_opponent');
 
-  // 3) start a battle + seed candles from engine
-  try {
-    await startBattle("ES");
-    await seedEngine(30);
-  } catch (e) {
-    alert("Failed to start battle: " + e);
-  }
+  // Initial setup
+  setControlsEnabled(false);
+  document.getElementById('start-duel').disabled = false;
+  setActiveTrader('user_1'); // Initialize User A as active
 });
 </script>
-
-
-
-</body>
-</html>
