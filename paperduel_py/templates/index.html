@@ -39,90 +39,242 @@
   <div class="status" id="status">Loading…</div>
 </div>
 
+
 <script>
-const START_CAPITAL = 100000, MULT=50, TICK=0.25, SLIP_TICKS=0.5, COMM=1.25, WINDOW=120;
-let bars = [], idx = 0, timer = null, pos = 0, cash = START_CAPITAL, trades = [];
+/* ===== PaperDuel – single unified script ===== */
 
-function tsToSec(iso){ if(!iso) return; const s=String(iso).replace('.000000000Z','Z'); const t=new Date(s).getTime(); return Number.isFinite(t)?Math.floor(t/1000):undefined; }
-function makeMockBars(n=300){ const out=[]; let p=3860, t=Date.parse("2023-01-03T14:31:00Z"); for(let i=0;i<n;i++){ const o=p, c=o+(Math.random()-0.5), h=Math.max(o,c)+Math.random()*0.5, l=Math.min(o,c)-Math.random()*0.5; out.push({t:new Date(t).toISOString(),open:+o.toFixed(2),high:+h.toFixed(2),low:+l.toFixed(2),close:+c.toFixed(2)}); p=c; t+=60*1000;} return out; }
-function setStatus(){ const last=bars[Math.max(0, idx-1)]; document.getElementById('status').textContent=`Bars: ${bars.length} | Shown: ${idx} | Last: ${last?last.t:'—'} @ ${last?last.close:'—'} | Pos: ${pos} | Cash: $${cash.toFixed(2)} | Eq: $${(cash+pos*(last?last.close:0)*MULT).toFixed(2)}`; }
+const WINDOW = 120;           // keep last N candles visible
+let chart, series;            // chart handles (created on load)
+let idx = 0;                  // how many candles rendered
+let timer = null;             // play interval id
+let battleId = null;
+let totalBars = 0;
 
-(function init() {
-  // 0) Verify the library actually loaded
-  if (!window.LightweightCharts || typeof LightweightCharts.createChart !== 'function') {
-    console.error('LightweightCharts not loaded:', window.LightweightCharts);
-    alert('Chart library failed to load. Check network/corporate blockers.'); 
-    return;
+/* ---- helpers ---- */
+function clampWindow() {
+  const to = idx, from = Math.max(0, to - WINDOW);
+  chart.timeScale().setVisibleLogicalRange({ from, to });
+}
+
+function stateToCandle(state) {
+  const b = state.bar_data; // {timestamp, open, high, low, close, volume}
+  const ts = Math.floor(new Date(b.timestamp.replace(' ', 'T') + 'Z').getTime()/1000);
+  return { time: ts, open: b.open, high: b.high, low: b.low, close: b.close };
+}
+
+function liveEquity(state) {
+  // Multiplier = 50 for ES (you can expand later based on asset)
+  const mult = 50;
+  const dir  = state?.stats?.position_direction ?? 0;
+  const size = state?.stats?.position_size ?? 0;
+  const entry= state?.stats?.entry_price ?? 0;
+  const last = state?.bar_data?.close ?? 0;
+  const unreal = (dir !== 0 && size > 0) ? (last - entry) * dir * size * mult : 0;
+  const realized = state?.stats?.equity ?? 0;
+  return { unreal, realized, total: realized + unreal, last };
+}
+
+
+async function updateStatus(lastState = null) {
+  const st   = lastState || await getState();
+  const eq   = liveEquity(st);
+  const posD = st?.stats?.position_direction ?? 0;
+  const posS = st?.stats?.position_size ?? 0;
+
+  document.getElementById('status').textContent =
+    `Bars: ${idx}/${totalBars} | Last: ${eq.last} | Pos: ${posD} x ${posS} | ` +
+    `Equity (realized): $${eq.realized.toFixed(2)} | ` +
+    `Unrealized: $${eq.unreal.toFixed(2)} | Total: $${eq.total.toFixed(2)}`;
+}
+
+async function endBattle() {
+  pause();
+  // If in a position, queue a close and advance once so it fills
+  let st = await getState();
+  if (st.stats.position_size > 0 && idx < totalBars - 1) {
+    const r = await place("CLOSE");
+    if (!r.error) {
+      st = await advance();                 // fills close on next bar open
+      series.update(stateToCandle(st));
+      idx++;
+      clampWindow();
+    }
+  }
+  // Final status + equity
+  const eq = liveEquity(st);
+  alert(
+    `Finished!\n` +
+    `Status: ${st.status}\n` +
+    `Final Equity (realized): $${eq.realized.toFixed(2)}\n` +
+    `Unrealized at end: $${eq.unreal.toFixed(2)}\n` +
+    `Total: $${eq.total.toFixed(2)}`
+  );
+}
+
+async function updateStatus(last=null) {
+  const st = last || await getState();
+  const eq = st?.stats?.equity ?? 0;
+  const posDir = st?.stats?.position_direction ?? 0;
+  const posSz  = st?.stats?.position_size ?? 0;
+  const lastClose = st?.bar_data?.close ?? "—";
+  document.getElementById('status').textContent =
+    `Bars: ${idx}/${totalBars} | Last: ${lastClose} | Pos: ${posDir} x ${posSz} | Equity: $${eq}`;
+}
+
+/* ---- API helpers ---- */
+async function startBattle(asset="ES") {
+  const r = await fetch("/api/battle/start", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ asset, user_id:"user_1" })
+  });
+  const d = await r.json();
+  if (!r.ok || !d.battle_id) throw new Error(JSON.stringify(d));
+  battleId = d.battle_id; totalBars = d.total_bars;
+}
+async function getState() {
+  const r = await fetch(`/api/battle/${battleId}/state`);
+  return await r.json();
+}
+async function advance() {
+  const r = await fetch(`/api/battle/${battleId}/advance`, { method:"POST" });
+  return await r.json();
+}
+async function place(action, payload={}) {
+  const r = await fetch(`/api/battle/${battleId}/order`, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ action, ...payload })
+  });
+  return await r.json();
+}
+
+/* ---- engine-driven chart flow ---- */
+async function seedEngine(n=30) {
+  const data = [];
+  for (let k=0; k<n; k++) {
+    const st = await advance();
+    if (st.error) break;
+    data.push(stateToCandle(st));
+  }
+  series.setData(data);
+  idx = data.length;
+  chart.timeScale().fitContent();
+  clampWindow();
+  updateStatus();
+}
+async function appendFromEngine() {
+  let st = await advance();
+  if (st.error === "battle not found") {
+    await startBattle("ES");
+    st = await advance();
+  }
+  if (st.error) { pause(); return; }
+  series.update(stateToCandle(st));
+  idx++;
+  clampWindow();
+  updateStatus(st);
+  if (st.status && st.status !== "RUNNING") pause();
+}
+function play(speed=300){ if (!timer) timer = setInterval(appendFromEngine, speed); }
+function pause(){ if (timer){ clearInterval(timer); timer = null; } }
+async function step(){ await appendFromEngine(); }
+
+/* ---- trading wrappers ---- */
+async function buy(){
+  const st = await getState();
+  if (st.status !== "RUNNING") return alert(`Battle status: ${st.status}`);
+  if (st.stats.position_size > 0) return alert("Already in a position. Use Flatten to exit first.");
+  if (idx >= totalBars - 1) return alert("No more data to enter.");
+  const r = await place("BUY", { size: 1 });   // add sl/tp later
+  if (r.error) return alert(r.error);
+  alert("BUY queued: it fills on the NEXT bar open. Press Step or Play.");
+}
+
+async function sell(){
+  const st = await getState();
+  if (st.status !== "RUNNING") return alert(`Battle status: ${st.status}`);
+  if (st.stats.position_size > 0) return alert("Already in a position. Use Flatten to exit first.");
+  if (idx >= totalBars - 1) return alert("No more data to enter.");
+  const r = await place("SELL", { size: 1 });
+  if (r.error) return alert(r.error);
+  alert("SELL queued: it fills on the NEXT bar open. Press Step or Play.");
+}
+
+async function closePos(){
+  const st = await getState();
+  if (st.status !== "RUNNING") return alert(`Battle status: ${st.status}`);
+  if (st.stats.position_size <= 0) return alert("No open position to close.");
+  if (idx >= totalBars - 1) return alert("No more data to exit.");
+  const r = await place("CLOSE");
+  if (r.error) return alert(r.error);
+  alert("Close queued: it fills on the NEXT bar open. Press Step or Play.");
+}
+
+
+/* ---- boot on page load ---- */
+window.addEventListener("load", async () => {
+  // 0) verify lib
+  if (!window.LightweightCharts || typeof LightweightCharts.createChart !== "function") {
+    alert("Chart library failed to load."); return;
   }
 
-  // 1) Create chart
-  const el = document.getElementById('chart');
-  const chart = LightweightCharts.createChart(el, {
+  // 1) create chart first so `series` exists before engine runs
+  const el = document.getElementById("chart");
+  chart = LightweightCharts.createChart(el, {
     width: el.clientWidth, height: 420,
     layout: { background: { color: '#1e1e1e' }, textColor: '#ddd' },
-    grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+    grid:   { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
     rightPriceScale: { borderVisible: false },
     timeScale: {
-      borderVisible:false,
-      barSpacing:6,
-      fixLeftEdge:true,
-      fixRightEdge:true,
-      lockVisibleTimeRangeOnResize:true,
-      rightOffset:0
+      borderVisible: false,
+      barSpacing: 6,
+      fixLeftEdge: true,
+      fixRightEdge: true,
+      lockVisibleTimeRangeOnResize: true,
+      rightOffset: 0,
+      timeVisible: true,      // 👈 show HH:MM on the x-axis
+      secondsVisible: false,  // set to true if you want :ss
     },
   });
-
-  console.log('typeof addCandlestickSeries =', typeof chart.addCandlestickSeries);
-  const series = chart.addCandlestickSeries();
-
+  series = chart.addCandlestickSeries();
   window.addEventListener('resize', () => chart.applyOptions({ width: el.clientWidth }));
 
-  function visibleClamp(){ const to=idx, from=Math.max(0,to-WINDOW); chart.timeScale().setVisibleLogicalRange({from,to}); }
-  function seed(n=30){
-    const d=[];
-    for(let k=0;k<Math.min(n,bars.length);k++){ const ts=tsToSec(bars[k].t); if(!ts) continue;
-      d.push({ time:ts, open:bars[k].open, high:bars[k].high, low:bars[k].low, close:bars[k].close });
-    }
-    series.setData(d); idx=d.length; chart.timeScale().fitContent(); visibleClamp(); setStatus();
-  }
-  function appendBar(){ if(idx>=bars.length){ pause(); return; }
-    const b=bars[idx]; const ts=tsToSec(b.t); if(!ts){ idx++; return; }
-    series.update({ time:ts, open:b.open, high:b.high, low:b.low, close:b.close });
-    idx++; visibleClamp(); setStatus();
-  }
-  function play(speed=300){ if(!timer) timer=setInterval(appendBar, speed); }
-  function pause(){ if(timer){ clearInterval(timer); timer=null; } }
-  function step(){ appendBar(); }
-  function marketFill(dir){ const next=bars[idx]||bars[idx-1]; if(!next) return;
-    const fill = dir>0 ? (next.open + SLIP_TICKS*TICK) : (next.open - SLIP_TICKS*TICK);
-    trades.push({ t: next.t, side: dir>0?'BUY':'SELL', qty:1, price:+fill.toFixed(2), commission: COMM });
-    pos += dir; cash += (-dir * fill * MULT) - COMM; setStatus();
-  }
-  function buy(){ marketFill(+1); } function sell(){ marketFill(-1); }
-  function flatten(){ while(pos>0) sell(); while(pos<0) buy(); }
-  function finish(){ pause(); const last=bars[Math.max(0,idx-1)]; const eq=cash + pos*(last?last.close:0)*MULT; alert(`Finished!\nBars viewed: ${idx}/${bars.length}\nPnL $${(eq-START_CAPITAL).toFixed(2)}`); }
+  // Create legend
+  const legend = document.createElement('div');
+  legend.style.cssText = 'margin-top:6px;color:#bbb;font:12px system-ui';
+  el.parentElement.appendChild(legend);
 
-  document.getElementById('play').onclick = ()=>play(300);
+  const hhmm = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  });
+
+  chart.subscribeCrosshairMove(param => {
+    const p = param.seriesData.get(series);
+    if (!p) { legend.textContent = ''; return; }
+    const dt = new Date(p.time * 1000);
+    legend.textContent = `${hhmm.format(dt)}  O:${p.open} H:${p.high} L:${p.low} C:${p.close}`;
+  });
+
+
+  // 2) wire buttons now that play/pause/etc exist
+  document.getElementById('play').onclick  = ()=>play(300);
   document.getElementById('pause').onclick = pause;
-  document.getElementById('step').onclick = step;
-  document.getElementById('buy').onclick = buy;
-  document.getElementById('sell').onclick = sell;
-  document.getElementById('flat').onclick = flatten;
-  document.getElementById('end').onclick = finish;
+  document.getElementById('step').onclick  = step;
+  document.getElementById('buy').onclick   = buy;
+  document.getElementById('sell').onclick  = sell;
+  document.getElementById('flat').onclick  = closePos;
+  document.getElementById('end').onclick = endBattle;
 
-  // 2) Load data; fallback to 300 mock bars if /data/es fails
-  fetch("/data/es")
-    .then(r=> r.ok ? r.json() : Promise.reject(new Error('HTTP '+r.status)))
-    .then(data=>{
-      const cleaned = (Array.isArray(data)?data:[]).map(b=>({ t:b.t??b.timestamp??b.time, open:+b.open, high:+b.high, low:+b.low, close:+b.close }))
-        .filter(b=> b.t && [b.open,b.high,b.low,b.close].every(Number.isFinite));
-      if (!cleaned.length) throw new Error('empty/invalid data');
-      bars = cleaned;
-    })
-    .catch(err => { console.warn('Falling back to mock bars:', err); bars = makeMockBars(300); })
-    .finally(seed);
-})();
+  // 3) start a battle + seed candles from engine
+  try {
+    await startBattle("ES");
+    await seedEngine(30);
+  } catch (e) {
+    alert("Failed to start battle: " + e);
+  }
+});
 </script>
+
 
 
 </body>
