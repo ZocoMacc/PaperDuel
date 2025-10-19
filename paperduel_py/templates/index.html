@@ -14,12 +14,12 @@
   </script>
 
   <style>
-    body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 16px; color:#222; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 16px; color:#eee; background:#121212; }
     .wrap { max-width: 980px; margin: 0 auto; }
-    #chart { width: 100%; height: 420px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+    #chart { width: 100%; height: 420px; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
     .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    button { padding:8px 12px; border:1px solid #ddd; border-radius:6px; background:#fafafa; cursor:pointer; }
-    button:hover { background:#f0f0f0; }
+    button { padding:8px 12px; border:1px solid #444; border-radius:6px; background:#2a2a2a; color:#eee; cursor:pointer; }
+    button:hover { background:#3a3a3a; }
     .status { margin-top:6px; font-size:14px; color:#444; }
   </style>
 </head>
@@ -59,11 +59,19 @@ function setStatus(){ const last=bars[Math.max(0, idx-1)]; document.getElementBy
   const el = document.getElementById('chart');
   const chart = LightweightCharts.createChart(el, {
     width: el.clientWidth, height: 420,
-    layout: { background: { color: 'white' }, textColor: '#222' },
-    grid: { vertLines: { color: '#eee' }, horzLines: { color: '#eee' } },
+    layout: { background: { color: '#1e1e1e' }, textColor: '#ddd' },
+    grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
     rightPriceScale: { borderVisible: false },
-    timeScale: { borderVisible:false, barSpacing:6, fixLeftEdge:true, fixRightEdge:true, lockVisibleTimeRangeOnResize:true, rightOffset:0 },
+    timeScale: {
+      borderVisible:false,
+      barSpacing:6,
+      fixLeftEdge:true,
+      fixRightEdge:true,
+      lockVisibleTimeRangeOnResize:true,
+      rightOffset:0
+    },
   });
+
   console.log('typeof addCandlestickSeries =', typeof chart.addCandlestickSeries);
   const series = chart.addCandlestickSeries();
 
