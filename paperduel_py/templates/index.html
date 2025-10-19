@@ -91,13 +91,18 @@
       flex: 1;
       display: flex;
       flex-direction: column;
+      min-width:0;
       background: #1b1b1b;
     }
+
+    #right-panel .wrap { flex:1; display:flex; flex-direction:column; min-height:0; padding:0; margin:0; }
 
     #chart {
       flex: 1;
       min-height:0;       /* taller chart */
       background: #1e1e1e;
+      padding:0;
+      margin:0;
     }
 
     #command-panel {
@@ -156,49 +161,38 @@
 </head>
 
 <body>
-<!-- <div class="wrap">
-  <h1>Replay</h1>
-  <div id="chart"></div>
+  <!-- toast + modal containers may also live here if you use them -->
   <div id="toasts"></div>
-  <div id="command-panel" style="margin-top:10px;">
-    <input id="size" type="number" value="1" style="width:60px"> size
-    SL <input id="sl" type="number" step="0.25" style="width:90px">
-    TP <input id="tp" type="number" step="0.25" style="width:90px">
-    <button id="buy">BUY</button>
-    <button id="sell">SELL</button>
-    <button id="flat">CLOSE</button>
-    <button id="next">Next Bar</button>
-    <button id="play">Play</button>
-    <button id="pause">Pause</button>
-    <button id="end">End</button>
-  </div>
-</div> -->
 
-<div id="layout">
-  <div id="left-panel">
-    <h3>History</h3>
-    <pre id="console"></pre>
-  </div>
-
-  <div id="right-panel">
-    <div id="chart"></div>
-
-    <div id="command-panel">
-      <input id="size" type="number" value="1" style="width:60px"> size
-      SL <input id="sl" type="number" step="0.25" style="width:90px">
-      TP <input id="tp" type="number" step="0.25" style="width:90px">
-      <button id="buy">BUY</button>
-      <button id="sell">SELL</button>
-      <button id="flat">CLOSE</button>
-      <button id="next">Next Bar</button>
-      <button id="play">Play</button>
-      <button id="pause">Pause</button>
-      <button id="end">End</button>
+  <div id="layout">
+    <!-- LEFT: history -->
+    <div id="left-panel">
+      <h3>History</h3>
+      <pre id="console"></pre>
+      <div id="status"></div>
     </div>
 
-    <div id="status"></div>
+    <!-- RIGHT: exact working block, unchanged IDs -->
+    <div id="right-panel">
+      <div class="wrap" style="display:flex;flex-direction:column;min-height:100%;">
+        <h1 style="margin:10px 12px 6px;">Replay</h1>
+        <div id="chart" style="flex:1;min-height:0;"></div>
+
+        <div id="command-panel" style="margin-top:10px;padding:10px;">
+          Size <input id="size" type="number" value="1" style="width:60px">
+          SL <input id="sl" type="number" step="0.25" style="width:90px">
+          TP <input id="tp" type="number" step="0.25" style="width:90px">
+          <button id="buy">BUY</button>
+          <button id="sell">SELL</button>
+          <button id="flat">CLOSE</button>
+          <button id="next">Next Bar</button>
+          <button id="play">Play</button>
+          <button id="pause">Pause</button>
+          <button id="end">End</button>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 
 <pre id="console" style="background:#111;color:#9f9;font:12px/1.4 monospace;padding:8px;border-radius:6px;max-height:180px;overflow:auto;margin-top:8px;"></pre>
 
@@ -425,7 +419,6 @@ async function closePos(){
 }
 
 
-
 /* ---- boot on page load ---- */
 window.addEventListener("load", async () => {
   // 0) verify lib
@@ -456,7 +449,7 @@ window.addEventListener("load", async () => {
   // Create legend
   const legend = document.createElement('div');
   legend.style.cssText = 'margin-top:6px;color:#bbb;font:12px system-ui';
-  el.parentElement.appendChild(legend);
+  // el.parentElement.appendChild(legend);
 
   const hhmm = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Chicago',
