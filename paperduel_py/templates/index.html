@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PaperDuel – Replay</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Lightweight Charts standalone build (no bundler needed) -->
+  <!-- <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+   -->
+
+  <!-- Added this -->
+  <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"
+        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js';document.head.appendChild(s);">
+  </script>
+
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 16px; color:#222; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    #chart { width: 100%; height: 420px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    button { padding:8px 12px; border:1px solid #ddd; border-radius:6px; background:#fafafa; cursor:pointer; }
+    button:hover { background:#f0f0f0; }
+    .status { margin-top:6px; font-size:14px; color:#444; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Replay</h1>
+  <div id="chart"></div>
+  <div class="row">
+    <button id="play">Play</button>
+    <button id="pause">Pause</button>
+    <button id="step">Step</button>
+    <button id="buy">Buy</button>
+    <button id="sell">Sell</button>
+    <button id="flat">Flatten</button>
+    <button id="end">End / Show Result</button>
+  </div>
+  <div class="status" id="status">Loading…</div>
+</div>
+
+<script>
+const START_CAPITAL = 100000, MULT=50, TICK=0.25, SLIP_TICKS=0.5, COMM=1.25, WINDOW=120;
+let bars = [], idx = 0, timer = null, pos = 0, cash = START_CAPITAL, trades = [];
+
+function tsToSec(iso){ if(!iso) return; const s=String(iso).replace('.000000000Z','Z'); const t=new Date(s).getTime(); return Number.isFinite(t)?Math.floor(t/1000):undefined; }
+function makeMockBars(n=300){ const out=[]; let p=3860, t=Date.parse("2023-01-03T14:31:00Z"); for(let i=0;i<n;i++){ const o=p, c=o+(Math.random()-0.5), h=Math.max(o,c)+Math.random()*0.5, l=Math.min(o,c)-Math.random()*0.5; out.push({t:new Date(t).toISOString(),open:+o.toFixed(2),high:+h.toFixed(2),low:+l.toFixed(2),close:+c.toFixed(2)}); p=c; t+=60*1000;} return out; }
+function setStatus(){ const last=bars[Math.max(0, idx-1)]; document.getElementById('status').textContent=`Bars: ${bars.length} | Shown: ${idx} | Last: ${last?last.t:'—'} @ ${last?last.close:'—'} | Pos: ${pos} | Cash: $${cash.toFixed(2)} | Eq: $${(cash+pos*(last?last.close:0)*MULT).toFixed(2)}`; }
+
+(function init() {
+  // 0) Verify the library actually loaded
+  if (!window.LightweightCharts || typeof LightweightCharts.createChart !== 'function') {
+    console.error('LightweightCharts not loaded:', window.LightweightCharts);
+    alert('Chart library failed to load. Check network/corporate blockers.'); 
+    return;
+  }
+
+  // 1) Create chart
+  const el = document.getElementById('chart');
+  const chart = LightweightCharts.createChart(el, {
+    width: el.clientWidth, height: 420,
+    layout: { background: { color: 'white' }, textColor: '#222' },
+    grid: { vertLines: { color: '#eee' }, horzLines: { color: '#eee' } },
+    rightPriceScale: { borderVisible: false },
+    timeScale: { borderVisible:false, barSpacing:6, fixLeftEdge:true, fixRightEdge:true, lockVisibleTimeRangeOnResize:true, rightOffset:0 },
+  });
+  console.log('typeof addCandlestickSeries =', typeof chart.addCandlestickSeries);
+  const series = chart.addCandlestickSeries();
+
+  window.addEventListener('resize', () => chart.applyOptions({ width: el.clientWidth }));
+
+  function visibleClamp(){ const to=idx, from=Math.max(0,to-WINDOW); chart.timeScale().setVisibleLogicalRange({from,to}); }
+  function seed(n=30){
+    const d=[];
+    for(let k=0;k<Math.min(n,bars.length);k++){ const ts=tsToSec(bars[k].t); if(!ts) continue;
+      d.push({ time:ts, open:bars[k].open, high:bars[k].high, low:bars[k].low, close:bars[k].close });
+    }
+    series.setData(d); idx=d.length; chart.timeScale().fitContent(); visibleClamp(); setStatus();
+  }
+  function appendBar(){ if(idx>=bars.length){ pause(); return; }
+    const b=bars[idx]; const ts=tsToSec(b.t); if(!ts){ idx++; return; }
+    series.update({ time:ts, open:b.open, high:b.high, low:b.low, close:b.close });
+    idx++; visibleClamp(); setStatus();
+  }
+  function play(speed=300){ if(!timer) timer=setInterval(appendBar, speed); }
+  function pause(){ if(timer){ clearInterval(timer); timer=null; } }
+  function step(){ appendBar(); }
+  function marketFill(dir){ const next=bars[idx]||bars[idx-1]; if(!next) return;
+    const fill = dir>0 ? (next.open + SLIP_TICKS*TICK) : (next.open - SLIP_TICKS*TICK);
+    trades.push({ t: next.t, side: dir>0?'BUY':'SELL', qty:1, price:+fill.toFixed(2), commission: COMM });
+    pos += dir; cash += (-dir * fill * MULT) - COMM; setStatus();
+  }
+  function buy(){ marketFill(+1); } function sell(){ marketFill(-1); }
+  function flatten(){ while(pos>0) sell(); while(pos<0) buy(); }
+  function finish(){ pause(); const last=bars[Math.max(0,idx-1)]; const eq=cash + pos*(last?last.close:0)*MULT; alert(`Finished!\nBars viewed: ${idx}/${bars.length}\nPnL $${(eq-START_CAPITAL).toFixed(2)}`); }
+
+  document.getElementById('play').onclick = ()=>play(300);
+  document.getElementById('pause').onclick = pause;
+  document.getElementById('step').onclick = step;
+  document.getElementById('buy').onclick = buy;
+  document.getElementById('sell').onclick = sell;
+  document.getElementById('flat').onclick = flatten;
+  document.getElementById('end').onclick = finish;
+
+  // 2) Load data; fallback to 300 mock bars if /data/es fails
+  fetch("/data/es")
+    .then(r=> r.ok ? r.json() : Promise.reject(new Error('HTTP '+r.status)))
+    .then(data=>{
+      const cleaned = (Array.isArray(data)?data:[]).map(b=>({ t:b.t??b.timestamp??b.time, open:+b.open, high:+b.high, low:+b.low, close:+b.close }))
+        .filter(b=> b.t && [b.open,b.high,b.low,b.close].every(Number.isFinite));
+      if (!cleaned.length) throw new Error('empty/invalid data');
+      bars = cleaned;
+    })
+    .catch(err => { console.warn('Falling back to mock bars:', err); bars = makeMockBars(300); })
+    .finally(seed);
+})();
+</script>
+
+
+</body>
+</html>
