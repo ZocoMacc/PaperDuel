@@ -37,10 +37,32 @@
   .user-stat-card.active { border-color: #3a6ea5; background: #181825; box-shadow: 0 0 5px rgba(58, 110, 165, 0.4); }
  .user-stat-card .pnl-val { font-weight: bold; }
   .pnl-val.profit { color: #00d980; }
-  .pnl-val.loss   { color: #ff5252; }
+  .pnl-val.loss { color: #ff5252; }
   .user-stat-card .info-line { display: flex; justify-content: space-between; margin-top: 2px; }
   
   #login-container { padding: 10px; border-bottom: 1px solid #333; display: flex; flex-direction: column; gap: 8px; }
+  
+  /* Dark Scroll bars */
+  /* Chrome/Edge/Safari */
+  *::-webkit-scrollbar {
+    width: 10px; height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: #0f0f0f;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #2e2e2e; border-radius: 8px; border: 2px solid #0f0f0f;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2e2e2e #0f0f0f;  /* thumb, track */
+  }
+
  </style>
 </head>
 
@@ -74,7 +96,7 @@
   <!-- RIGHT: Chart and Command Panel -->
  <div id="right-panel">
    <div class="wrap" style="display:flex;flex-direction:column;min-height:100%;">
-    <h1 id="header-status" style="margin:10px 12px 6px;">Replay (INACTIVE)</h1>
+    <h1 id="header-status" style="margin:10px 12px 6px;">PaperDuel (INACTIVE)</h1>
      <div id="chart" style="flex:1;min-height:0;"></div>
 
     <div id="command-panel" style="margin-top:10px;padding:10px;">
@@ -185,40 +207,40 @@ function updateTraderUI(state) {
  
  // NOTE: The backend did not pass currentBarIndex or totalBars, relying on JS counter 'idx'
  
- document.getElementById('header-status').textContent = `Replay (${state.bar_data.timestamp}) | ${state.status}`;
+ document.getElementById('header-status').textContent = `PaperDuel (${state.bar_data.timestamp}) | ${state.status}`;
  
  // 1. Render each trader's card
  for (const [userId, stats] of Object.entries(state.active_traders)) {
  const alias = USER_MAP[userId];
   const pnlClass = stats.unrealized_pnl_usd > 0 ? 'profit' : (stats.unrealized_pnl_usd < 0 ? 'loss' : '');
  
-    const card = document.createElement('div');
-    card.className = `user-stat-card ${userId === activeTradingUserId ? 'active' : ''}`;
-    card.innerHTML = `
-      <div>
-        <b>${alias}</b> (Asset: ${stats.position_asset_symbol})
-      </div>
-      <div class="info-line">
-        <span>Equity:</span> <span>$${stats.equity.toFixed(2)}</span>
-      </div>
-      <div class="info-line">
-        <span>PnL:</span> <span class="pnl-val ${pnlClass}">$${stats.unrealized_pnl_usd.toFixed(2)}</span>
-      </div>
-      ${stats.in_position ? `
-        <div class="info-line" style="color:#00d980;">
-          <span>${stats.position_direction > 0 ? 'LONG' : 'SHORT'} ${stats.active_position_size} @ </span> <span>${stats.entry_price_points.toFixed(2)}</span>
-        </div>` : '<div>FLAT</div>'}
-    `;
-    container.appendChild(card);
-  }
+  const card = document.createElement('div');
+    card.className = `user-stat-card ${userId === activeTradingUserId ? 'active' : ''}`;
+    card.innerHTML = `
+      <div>
+        <b>${alias}</b> (Asset: ${stats.position_asset_symbol})
+      </div>
+      <div class="info-line">
+        <span>Equity:</span> <span>$${stats.equity.toFixed(2)}</span>
+      </div>
+      <div class="info-line">
+        <span>PnL:</span> <span class="pnl-val ${pnlClass}">$${stats.unrealized_pnl_usd.toFixed(2)}</span>
+      </div>
+      ${stats.in_position ? `
+        <div class="info-line" style="color:#00d980;">
+          <span>${stats.position_direction > 0 ? 'LONG' : 'SHORT'} ${stats.active_position_size} @ </span> <span>${stats.entry_price_points.toFixed(2)}</span>
+        </div>` : '<div>FLAT</div>'}
+    `;
+    container.appendChild(card);
+  }
 
-  // 2. Log dual-asset prices (Time, ES Close, NQ Close)
-  logLine(`TIME: ${state.bar_data.timestamp} | ES: ${state.bar_data.close_es.toFixed(2)} | NQ: ${state.bar_data.close_nq.toFixed(2)}`, '#aaa');
-  
-  // 3. Log auto-exit notification
-  if (state.exit_notification) {
-    logLine(`📢 ${state.exit_notification}`, '#ff5252', true);
-  }
+  // 2. Log dual-asset prices (Time, ES Close, NQ Close)
+  logLine(`TIME: ${state.bar_data.timestamp} | ES: ${state.bar_data.close_es.toFixed(2)} | NQ: ${state.bar_data.close_nq.toFixed(2)}`, '#aaa');
+
+  // 3. Log auto-exit notification
+  if (state.exit_notification) {
+    logLine(`📢 ${state.exit_notification}`, '#ff5252', true);
+  }
 }
 
 
