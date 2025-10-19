@@ -14,30 +14,193 @@
   </script>
 
   <style>
-    body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 16px; color:#eee; background:#121212; }
+    /* body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 16px; color:#eee; background:#121212; } */
     .wrap { max-width: 980px; margin: 0 auto; }
-    #chart { width: 100%; height: 420px; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    /* #chart { width: 100%; height: 420px; border: 1px solid #444; border-radius: 8px; overflow: hidden; } */
+    /* .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; } */
     button { padding:8px 12px; border:1px solid #444; border-radius:6px; background:#2a2a2a; color:#eee; cursor:pointer; }
     button:hover { background:#3a3a3a; }
     .status { margin-top:6px; font-size:14px; color:#444; }
+
+    /* Alerts */
+    #toasts {
+      position: fixed; right: 16px; bottom: 16px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 9999;
+    }
+    .toast {
+      min-width: 260px; max-width: 420px;
+      padding: 10px 12px; border-radius: 8px;
+      background: #2a2a2a; color: #eee; box-shadow: 0 6px 24px rgba(0,0,0,.35);
+      border: 1px solid #444; font: 14px system-ui, sans-serif;
+      display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 8px;
+      opacity: 0; transform: translateY(8px); transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast .title { font-weight: 600; margin-bottom: 4px; }
+    .toast .close { cursor: pointer; opacity: .8; border: 0; background: transparent; color: inherit; }
+    .toast.info    { border-color: #3a6ea5; }
+    .toast.success { border-color: #2e7d32; }
+    .toast.warn    { border-color: #a67c00; }
+    .toast.error   { border-color: #b00020; }
+
+    body {
+      margin: 0;
+      background: #0d0d0d;
+      color: #ddd;
+      font-family: monospace;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #layout {
+      display: flex;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Left column: history log */
+    #left-panel {
+      width: 26%;
+      border-right: 1px solid #222;
+      display: flex;
+      flex-direction: column;
+      background: #1b1b1b;
+    }
+
+    #left-panel h3 {
+      margin: 0;
+      padding: 10px;
+      border-bottom: 1px solid #333;
+      background: #1b1b1b;
+      text-align: center;
+      font-weight: bold;
+      color: #eee;
+    }
+
+    #console {
+      flex: 1;
+      padding: 8px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.4;
+      background: #0b0b0b;
+    }
+
+    /* Right column: chart + buttons */
+    #right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #1b1b1b;
+    }
+
+    #chart {
+      flex: 1;
+      min-height:0;       /* taller chart */
+      background: #1e1e1e;
+    }
+
+    #command-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 10px;
+      border-top: 1px solid #333;
+      background: #111;
+    }
+
+    #command-panel button {
+      background: #222;
+      color: #eee;
+      border: 1px solid #444;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background .2s;
+    }
+    #command-panel button:hover {
+      background: #333;
+    }
+
+    #status {
+      text-align: center;
+      padding: 6px;
+      background: #111;
+      border-top: 1px solid #222;
+      font-size: 13px;
+    }
+
+    /* Dark Scroll bars */
+    /* Chrome/Edge/Safari */
+    *::-webkit-scrollbar {
+      width: 10px; height: 10px;
+    }
+    *::-webkit-scrollbar-track {
+      background: #0f0f0f;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: #2e2e2e; border-radius: 8px; border: 2px solid #0f0f0f;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: #3a3a3a;
+    }
+
+    /* Firefox */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #2e2e2e #0f0f0f;  /* thumb, track */
+    }
+
   </style>
 </head>
+
 <body>
-<div class="wrap">
+<!-- <div class="wrap">
   <h1>Replay</h1>
   <div id="chart"></div>
-  <div class="row">
+  <div id="toasts"></div>
+  <div id="command-panel" style="margin-top:10px;">
+    <input id="size" type="number" value="1" style="width:60px"> size
+    SL <input id="sl" type="number" step="0.25" style="width:90px">
+    TP <input id="tp" type="number" step="0.25" style="width:90px">
+    <button id="buy">BUY</button>
+    <button id="sell">SELL</button>
+    <button id="flat">CLOSE</button>
+    <button id="next">Next Bar</button>
     <button id="play">Play</button>
     <button id="pause">Pause</button>
-    <button id="step">Step</button>
-    <button id="buy">Buy</button>
-    <button id="sell">Sell</button>
-    <button id="flat">Flatten</button>
-    <button id="end">End / Show Result</button>
+    <button id="end">End</button>
   </div>
-  <div class="status" id="status">Loading…</div>
+</div> -->
+
+<div id="layout">
+  <div id="left-panel">
+    <h3>History</h3>
+    <pre id="console"></pre>
+  </div>
+
+  <div id="right-panel">
+    <div id="chart"></div>
+
+    <div id="command-panel">
+      <input id="size" type="number" value="1" style="width:60px"> size
+      SL <input id="sl" type="number" step="0.25" style="width:90px">
+      TP <input id="tp" type="number" step="0.25" style="width:90px">
+      <button id="buy">BUY</button>
+      <button id="sell">SELL</button>
+      <button id="flat">CLOSE</button>
+      <button id="next">Next Bar</button>
+      <button id="play">Play</button>
+      <button id="pause">Pause</button>
+      <button id="end">End</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
 </div>
+
+<pre id="console" style="background:#111;color:#9f9;font:12px/1.4 monospace;padding:8px;border-radius:6px;max-height:180px;overflow:auto;margin-top:8px;"></pre>
 
 
 <script>
@@ -74,6 +237,58 @@ function liveEquity(state) {
   return { unreal, realized, total: realized + unreal, last };
 }
 
+// --- toast helper ---
+function toast(message, { title = "", variant = "info", timeout = 2500 } = {}) {
+  const host = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = `toast ${variant}`;
+  el.innerHTML = `
+    <div>
+      ${title ? `<div class="title">${title}</div>` : ""}
+      <div class="msg">${message}</div>
+    </div>
+    <button class="close" aria-label="Close">✕</button>
+  `;
+  host.appendChild(el);
+
+  // show
+  requestAnimationFrame(() => el.classList.add('show'));
+
+  // close button
+  el.querySelector('.close').onclick = () => dismiss();
+
+  // auto-dismiss
+  let t = null;
+  function dismiss() {
+    if (t) clearTimeout(t);
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 200);
+  }
+  if (timeout > 0) t = setTimeout(dismiss, timeout);
+  return { dismiss };
+}
+
+// Log line for each turn
+function logLine(msg, color = '#9f9') {
+  const c = document.getElementById('console');
+  const line = document.createElement('div');
+  line.style.color = color;
+  line.textContent = msg;
+  c.appendChild(line);
+  c.scrollTop = c.scrollHeight;
+}
+
+function printState(st) {
+  if (!st || !st.bar_data) return;
+  const s = st.stats, b = st.bar_data;
+  logLine(`TIME: ${b.timestamp}`, '#9ff');
+  logLine(`CLOSE: ES ${b.close} | EQUITY: $${s.equity.toFixed(2)}`);
+  const pos = s.position_size > 0
+    ? `${s.position_direction > 0 ? 'LONG' : 'SHORT'} ${s.position_size} @ ${s.entry_price}`
+    : '0 contracts (FLAT)';
+  logLine(`POS: ${pos} | SL: ${s.sl_level ?? 'None'} | TP: ${s.tp_level ?? 'None'}`);
+  logLine('----------------------------------------------', '#555');
+}
 
 async function updateStatus(lastState = null) {
   const st   = lastState || await getState();
@@ -162,52 +377,53 @@ async function seedEngine(n=30) {
   updateStatus();
 }
 async function appendFromEngine() {
-  let st = await advance();
-  if (st.error === "battle not found") {
-    await startBattle("ES");
-    st = await advance();
-  }
+  const st = await advance();
   if (st.error) { pause(); return; }
   series.update(stateToCandle(st));
   idx++;
   clampWindow();
   updateStatus(st);
+  printState(st);
   if (st.status && st.status !== "RUNNING") pause();
 }
+
 function play(speed=300){ if (!timer) timer = setInterval(appendFromEngine, speed); }
 function pause(){ if (timer){ clearInterval(timer); timer = null; } }
 async function step(){ await appendFromEngine(); }
 
+
 /* ---- trading wrappers ---- */
+async function nextBar() {
+  await appendFromEngine();
+}
+
 async function buy(){
-  const st = await getState();
-  if (st.status !== "RUNNING") return alert(`Battle status: ${st.status}`);
-  if (st.stats.position_size > 0) return alert("Already in a position. Use Flatten to exit first.");
-  if (idx >= totalBars - 1) return alert("No more data to enter.");
-  const r = await place("BUY", { size: 1 });   // add sl/tp later
-  if (r.error) return alert(r.error);
-  alert("BUY queued: it fills on the NEXT bar open. Press Step or Play.");
+  const size = Number(document.getElementById('size').value) || 1;
+  const sl = document.getElementById('sl').value ? Number(document.getElementById('sl').value) : null;
+  const tp = document.getElementById('tp').value ? Number(document.getElementById('tp').value) : null;
+  const r = await place("BUY", { size, sl, tp });
+  if (r.error) return toast(r.error, { variant:'error', title:'BUY Failed' });
+  toast(`BUY ${size} queued`, { variant:'success', title:'BUY' });
+  printState(await getState());
 }
 
 async function sell(){
-  const st = await getState();
-  if (st.status !== "RUNNING") return alert(`Battle status: ${st.status}`);
-  if (st.stats.position_size > 0) return alert("Already in a position. Use Flatten to exit first.");
-  if (idx >= totalBars - 1) return alert("No more data to enter.");
-  const r = await place("SELL", { size: 1 });
-  if (r.error) return alert(r.error);
-  alert("SELL queued: it fills on the NEXT bar open. Press Step or Play.");
+  const size = Number(document.getElementById('size').value) || 1;
+  const sl = document.getElementById('sl').value ? Number(document.getElementById('sl').value) : null;
+  const tp = document.getElementById('tp').value ? Number(document.getElementById('tp').value) : null;
+  const r = await place("SELL", { size, sl, tp });
+  if (r.error) return toast(r.error, { variant:'error', title:'SELL Failed' });
+  toast(`SELL ${size} queued`, { variant:'success', title:'SELL' });
+  printState(await getState());
 }
 
 async function closePos(){
-  const st = await getState();
-  if (st.status !== "RUNNING") return alert(`Battle status: ${st.status}`);
-  if (st.stats.position_size <= 0) return alert("No open position to close.");
-  if (idx >= totalBars - 1) return alert("No more data to exit.");
   const r = await place("CLOSE");
-  if (r.error) return alert(r.error);
-  alert("Close queued: it fills on the NEXT bar open. Press Step or Play.");
+  if (r.error) return toast(r.error, { variant:'error', title:'CLOSE Failed' });
+  toast('Position closed', { variant:'info' });
+  printState(await getState());
 }
+
 
 
 /* ---- boot on page load ---- */
@@ -218,25 +434,24 @@ window.addEventListener("load", async () => {
   }
 
   // 1) create chart first so `series` exists before engine runs
-  const el = document.getElementById("chart");
+  const el = document.getElementById('chart');
   chart = LightweightCharts.createChart(el, {
-    width: el.clientWidth, height: 420,
+    width: el.clientWidth,
+    height: el.clientHeight,           // use the container’s actual height
     layout: { background: { color: '#1e1e1e' }, textColor: '#ddd' },
-    grid:   { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+    grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
     rightPriceScale: { borderVisible: false },
-    timeScale: {
-      borderVisible: false,
-      barSpacing: 6,
-      fixLeftEdge: true,
-      fixRightEdge: true,
-      lockVisibleTimeRangeOnResize: true,
-      rightOffset: 0,
-      timeVisible: true,      // 👈 show HH:MM on the x-axis
-      secondsVisible: false,  // set to true if you want :ss
-    },
+    timeScale: { borderVisible:false, timeVisible:true, secondsVisible:false },
   });
   series = chart.addCandlestickSeries();
-  window.addEventListener('resize', () => chart.applyOptions({ width: el.clientWidth }));
+
+  // Resize on container size changes (more reliable than window.resize)
+  new ResizeObserver(entries => {
+    for (const e of entries) {
+      const { width, height } = e.contentRect;
+      chart.applyOptions({ width: Math.max(0, Math.floor(width)), height: Math.max(0, Math.floor(height)) });
+    }
+  }).observe(el);
 
   // Create legend
   const legend = document.createElement('div');
@@ -256,12 +471,14 @@ window.addEventListener("load", async () => {
   });
 
 
+
   // 2) wire buttons now that play/pause/etc exist
   document.getElementById('play').onclick  = ()=>play(300);
+  document.getElementById('next').onclick = nextBar;
   document.getElementById('pause').onclick = pause;
-  document.getElementById('step').onclick  = step;
-  document.getElementById('buy').onclick   = buy;
-  document.getElementById('sell').onclick  = sell;
+  // document.getElementById('step').onclick  = step;
+  document.getElementById('buy').onclick = buy;
+  document.getElementById('sell').onclick = sell;
   document.getElementById('flat').onclick  = closePos;
   document.getElementById('end').onclick = endBattle;
 
