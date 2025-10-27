@@ -5,8 +5,9 @@ It combines a realistic backtesting engine built in Python (FastAPI + pandas) wi
 ---
 
 ### Demo
-Live Demo: https://performed-describing-send-derby.trycloudflare.com
+Live Demo: https://performed-describing-send-derby.trycloudflare.com (demo is down now)
 - Click **Start Duel** to begin the game!
+Devpost: https://devpost.com/software/paperduel
 
 ---
 
