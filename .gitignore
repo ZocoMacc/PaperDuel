@@ -1,5 +1,52 @@
-node_modules
-dist
+# Python environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Environment and credentials
 .env
-runs/*
-!.gitkeep
+*.env
+.env.*
+*.key
+*.pem
+
+# Logs and temp data
+*.log
+*.tmp
+*.bak
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Compiled / cache files
+*.sqlite3
+*.db
+*.sqlite
+
+# Node frontend (if applicable)
+node_modules/
+dist/
+build/
+npm-debug.log
+yarn-error.log
+
+# Data files (if you’re using private datasets)
+data/
+!data/sample.csv  # you can un-ignore one small demo file if needed
+
+# ngrok or tunnel configs
+.ngrok2/
+.ngrok.log
+
