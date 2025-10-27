@@ -20,7 +20,7 @@ Live Demo: https://performed-describing-send-derby.trycloudflare.com
 ### How to run the app locally
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/PaperDuel.git
+git clone https://github.com/ZocoMacc/PaperDuel.git
 cd PaperDuel
 ```
 
@@ -40,9 +40,9 @@ pip install -r requirements.txt
 ```
 uvicorn api.main:app --reload
 ```
-  - You should see something like:
-  ```
-  Uvicorn running on http://127.0.0.1:8000
-  ```
+    - You should see something like:
+    ```
+    Uvicorn running on http://127.0.0.1:8000
+    ```
 
 8. Start playing! :)
