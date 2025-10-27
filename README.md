@@ -16,3 +16,34 @@ Live Demo: https://performed-describing-send-derby.trycloudflare.com
 - BUY/SELL/CLOSE trading system with SL/TP and slippage
 - Live equity, PnL, and position tracking
 - Terminal-style interface with live logs
+
+### How to run the app locally
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/PaperDuel.git
+cd PaperDuel
+```
+
+3. Create and activate a virtual environment
+```
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate     # Windows
+```
+
+5. Install dependencies
+```
+pip install -r requirements.txt
+```
+
+7. Run the backend server
+```
+uvicorn api.main:app --reload
+```
+
+You should see something like:
+```
+Uvicorn running on http://127.0.0.1:8000
+```
+
+8. Start playing! :)
