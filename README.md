@@ -40,10 +40,9 @@ pip install -r requirements.txt
 ```
 uvicorn api.main:app --reload
 ```
-
-You should see something like:
-```
-Uvicorn running on http://127.0.0.1:8000
-```
+  - You should see something like:
+  ```
+  Uvicorn running on http://127.0.0.1:8000
+  ```
 
 8. Start playing! :)
